@@ -59,7 +59,7 @@ col3, col4 = st.columns([3, 1])
 
 with col3:
     # API Key ab secrets.toml se aayegi
-    api_key = config.GEMINI_API_KEY
+    api_key = st.secrets["GEMINI_API_KEY"]
     config.GEMINI_API_KEY = api_key
     ai_engine._client = None
 
@@ -71,9 +71,7 @@ with col4:
         st.success("✅ Stock OK")
 
 st.divider()
-    st.divider()
-    st.caption("Built with Streamlit + Gemini + YOLO")
-
+st.caption("Built with Streamlit + Gemini + YOLO")
 tab_dashboard, tab_stock, tab_photo, tab_pricing, tab_chat, tab_sales = st.tabs(
     ["📊 Dashboard", "📦 Stock", "📸 Photo Counter",
      "💰 Smart Pricing", "💬 AI Chat", "🧾 Sales"]

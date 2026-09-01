@@ -60,16 +60,6 @@ col1, col2 = st.columns([6, 4])
 with col1:
     st.title("🏪 Dukan AI")
     st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
-
-
-            
-            if submitted:
-                # یہاں آپ اپنا اصل Email اور Password چیک کریں گے
-                if email == "admin@dukan.com" and password == "1234":
-                    st.session_state.logged_in = True
-                    st.rerun()
-                else:
-                    st.error("Email یا Password غلط ہے")
     else:
 with col3:
     # API Key ab secrets.toml se aayegi

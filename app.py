@@ -14,35 +14,63 @@ st.set_page_config(
     page_title="Dukan AI - Digital Munshi",
     page_icon="🏪",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
-
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
+</style>
+""", unsafe_allow_html=True)
 database.init_db()
 
-with st.sidebar:
+# Top Header Bar with Login
+col1, col2 = st.columns([6, 4])
+
+with col1:
     st.title("🏪 Dukan AI")
-    st.caption("Digital Munshi – آپ کا ڈیجیٹل منشی")
-    st.divider()
+    st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
 
-    api_key = st.text_input(
-        "🔑 Gemini API Key",
-        value=config.GEMINI_API_KEY,
-        type="password",
-        help="Use a Gemini API key from Google AI Studio.",
-    )
-    if api_key and api_key != config.GEMINI_API_KEY:
-        config.GEMINI_API_KEY = api_key
-        ai_engine._client = None
+with col2:
+    if not st.session_state.get("logged_in", False):
+        with st.form("login_form"):
+            st.write("**Login**")
+            email = st.text_input("📧 Email")
+            password = st.text_input("🔒 Password", type="password")
+            submitted = st.form_submit_button("Login")
+            
+            if submitted:
+                # یہاں آپ اپنا اصل Email اور Password چیک کریں گے
+                if email == "admin@dukan.com" and password == "1234":
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else:
+                    st.error("Email یا Password غلط ہے")
+    else:
+        st.write(f"Welcome 👋")
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
 
-    st.divider()
+st.divider()
+
+# API Key اور Alerts نیچے آ جائیں گے
+col3, col4 = st.columns([3, 1])
+
+with col3:
+    # API Key ab secrets.toml se aayegi
+    api_key = config.GEMINI_API_KEY
+    config.GEMINI_API_KEY = api_key
+    ai_engine._client = None
+
+with col4:
     alerts = database.get_low_stock_alerts()
     if alerts:
-        st.warning(f"⚠ {len(alerts)} Low Stock Alert(s)")
-        for a in alerts[:5]:
-            st.markdown(f"- **{a['name']}**: {a['quantity']} {a['unit']} left")
+        st.warning(f"⚠️ {len(alerts)} Low Stock")
     else:
-        st.success("All stock levels OK!")
+        st.success("✅ Stock OK")
 
+st.divider()
     st.divider()
     st.caption("Built with Streamlit + Gemini + YOLO")
 

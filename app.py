@@ -56,13 +56,11 @@ database.init_db()
 
 # Top Header Bar with Login
 col1, col2 = st.columns([6, 4])
-
 with col1:
     st.title("🏪 Dukan AI")
     st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
-    else:
 with col3:
-    # API Key ab secrets.toml se aayegi
+  # API Key ab secrets.toml se aayegi
     api_key = st.secrets["GEMINI_API_KEY"]
     config.GEMINI_API_KEY = api_key
     ai_engine._client = None

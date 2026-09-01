@@ -9,6 +9,36 @@ import ai_engine
 import stock_counter
 import voice_assistant
 import utils
+# LOGIN SYSTEM
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def show_login():
+    col1, col2 = st.columns([2,1])
+    with col2:
+        st.title("Login")
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            if st.form_submit_button("Login"):
+                if email == "admin@dokan.com" and password == "123456":
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else:
+                    st.error("Ghalat Email ya Password")
+
+def show_logout_button():
+    with col2:  # col2 = right side header
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
+
+# YE GATE HAI - LOGIN NAHI TO AAGE NAHI JANA
+if not st.session_state.logged_in:
+    show_login()
+    st.stop() 
+
+show_logout_button()
 
 st.set_page_config(
     page_title="Dukan AI - Digital Munshi",
@@ -31,13 +61,7 @@ with col1:
     st.title("🏪 Dukan AI")
     st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
 
-with col2:
-    if not st.session_state.get("logged_in", False):
-        with st.form("login_form"):
-            st.write("**Login**")
-            email = st.text_input("📧 Email")
-            password = st.text_input("🔒 Password", type="password")
-            submitted = st.form_submit_button("Login")
+
             
             if submitted:
                 # یہاں آپ اپنا اصل Email اور Password چیک کریں گے
@@ -47,16 +71,6 @@ with col2:
                 else:
                     st.error("Email یا Password غلط ہے")
     else:
-        st.write(f"Welcome 👋")
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.rerun()
-
-st.divider()
-
-# API Key اور Alerts نیچے آ جائیں گے
-col3, col4 = st.columns([3, 1])
-
 with col3:
     # API Key ab secrets.toml se aayegi
     api_key = st.secrets["GEMINI_API_KEY"]

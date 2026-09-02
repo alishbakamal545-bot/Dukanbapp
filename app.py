@@ -2,6 +2,7 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
+from streamlit_mic_recorder import mic_recorder
 
 import config
 import database
@@ -469,18 +470,54 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    # 1. Text Input
     user_input = st.chat_input(
         "Ask Dukan AI anything... e.g. 'chawal ka kya rate hai?'"
     )
 
-    if user_input:
+    # 2. Browser Voice Input Section
+    st.write("---")
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        audio = mic_recorder(
+            start_prompt="🎤 Record Voice",
+            stop_prompt="🛑 Stop & Process",
+            key="browser_voice_recorder"
+        )
+    with c2:
+        st.caption("Click to record audio directly from your browser mic.")
+
+    voice_text = None
+    if audio and "bytes" in audio:
+        with st.spinner("Transcribing voice input..."):
+            try:
+                # Transcribe speech bytes using Gemini multimodal audio capabilities
+                audio_part = {
+                    "mime_type": "audio/wav",
+                    "data": audio["bytes"]
+                }
+                response = ai_engine.get_client().models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[
+                        "Accurately transcribe this audio. It may contain Urdu, Roman Urdu, or English speech. Return ONLY the transcribed text.",
+                        audio_part
+                    ]
+                )
+                voice_text = response.text.strip()
+            except Exception as e:
+                st.error(f"Voice Transcription Failed: {e}")
+
+    # Process either text input or voice input
+    active_prompt = user_input or voice_text
+
+    if active_prompt:
         st.session_state.chat_history.append(
-            {"role": "user", "content": user_input}
+            {"role": "user", "content": active_prompt}
         )
         with st.chat_message("user"):
-            st.markdown(user_input)
+            st.markdown(active_prompt)
 
-        cmd = utils.parse_voice_command(user_input)
+        cmd = utils.parse_voice_command(active_prompt)
 
         with st.chat_message("assistant"):
             with st.spinner("Soch raha hoon..."):
@@ -572,36 +609,15 @@ with tab_chat:
                             f"'{cmd['product']}'."
                         )
                 else:
-                    reply = ai_engine.chat(user_input)
+                    reply = ai_engine.chat(active_prompt)
 
             st.markdown(reply)
             st.session_state.chat_history.append(
                 {"role": "assistant", "content": reply}
             )
+            st.rerun()
 
     st.divider()
-    c1, c2 = st.columns([1, 4])
-    with c1:
-        if voice_assistant.is_voice_available():
-            if st.button("🎤 Speak"):
-                with st.spinner("Listening..."):
-                    text = voice_assistant.listen()
-                if text and not text.startswith("⚠"):
-                    st.info(f"You said: {text}")
-                    st.session_state.chat_history.append(
-                        {"role": "user", "content": text}
-                    )
-                    st.session_state.chat_history.append(
-                        {"role": "assistant", "content": ai_engine.chat(text)}
-                    )
-                    st.rerun()
-                else:
-                    st.warning(text or "No speech detected.")
-        else:
-            st.button("🎤 Speak", disabled=True)
-    with c2:
-        st.caption("Click to speak in Urdu or English")
-
     if st.button("🗑 Clear Chat"):
         st.session_state.chat_history = []
         st.rerun()
@@ -635,3 +651,5 @@ with tab_sales:
         if st.button("🤖 Generate AI Daily Summary"):
             with st.spinner("Generating summary..."):
                 st.markdown(ai_engine.daily_summary())
+
+      

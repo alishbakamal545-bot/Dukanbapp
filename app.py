@@ -10,7 +10,7 @@ import stock_counter
 import voice_assistant
 import utils
 
-# Page configuration must be at the top level
+# Page configuration
 st.set_page_config(
     page_title="Dukan AI - Digital Munshi",
     page_icon="🏪",
@@ -18,73 +18,79 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Hide Sidebar Completely
+# Completely Hide Sidebar via CSS
 st.markdown("""
 <style>
-    [data-testid="stSidebar"] {display: none;}
-    [data-testid="stSidebarNav"] {display: none;}
+    [data-testid="stSidebar"] {display: none !important;}
+    [data-testid="stSidebarNav"] {display: none !important;}
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize database
+# Initialize DB
 database.init_db()
 
-# Initialize session state for auth
+# Initialize Session State
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+# --- AUTH PAGE ---
 def show_auth_page():
     st.title("🏪 Dukan AI Login")
+    st.caption("Digital Munshi - Please login to access your shop dashboard")
+    st.divider()
+
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col2:
-        tab_login, tab_signup = st.tabs(["Login", "Create Account"])
-        
+        tab_login, tab_signup = st.tabs(["🔑 Login", "📝 Create Account"])
+
         with tab_login:
             with st.form("login_form"):
                 email = st.text_input("Email", key="login_email")
                 password = st.text_input("Password", type="password", key="login_password")
-                submit_login = st.form_submit_button("Login")
-                
+                submit_login = st.form_submit_button("Login", use_container_width=True)
+
                 if submit_login:
-                    if database.check_user(email, password):
+                    if not email.strip() or not password.strip():
+                        st.warning("Please enter both email and password.")
+                    elif database.check_user(email, password):
                         st.session_state.logged_in = True
                         st.success("Login Successful!")
                         st.rerun()
                     else:
-                        st.error("Ghalat Email ya Password")
-                        
+                        st.error("Invalid email or password.")
+
         with tab_signup:
             with st.form("signup_form"):
                 new_email = st.text_input("Email", key="signup_email")
                 new_password = st.text_input("Password", type="password", key="signup_password")
-                submit_signup = st.form_submit_button("Sign Up")
-                
+                submit_signup = st.form_submit_button("Create Account", use_container_width=True)
+
                 if submit_signup:
-                    if new_email and new_password:
+                    if new_email.strip() and new_password.strip():
                         if database.add_user(new_email, new_password):
-                            st.success("Account created successfully! Please log in.")
+                            st.success("Account created successfully! Please log in using the Login tab.")
                         else:
-                            st.error("Account already exists with this email.")
+                            st.error("An account with this email already exists.")
                     else:
                         st.warning("Please fill in all fields.")
 
-# GATE - If not logged in, show Auth Page and stop execution
+# GATEWAY: Show Auth page if not logged in
 if not st.session_state.logged_in:
     show_auth_page()
     st.stop()
 
-# DASHBOARD HEADER WITH LOGOUT
+# --- HEADER WITH LOGOUT ---
 head_col1, head_col2, head_col3 = st.columns([6, 2, 2])
 
 with head_col1:
     st.title("🏪 Dukan AI")
-    st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
+    st.caption("Digital Munshi - آپ کا ڈیجیٹل منشی")
 
-# API Key config
-api_key = st.secrets["GEMINI_API_KEY"]
-config.GEMINI_API_KEY = api_key
-ai_engine._client = None
+# API Key setup silently from secrets
+if "GEMINI_API_KEY" in st.secrets:
+    config.GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    ai_engine._client = None
 
 with head_col2:
     alerts = database.get_low_stock_alerts()
@@ -94,12 +100,13 @@ with head_col2:
         st.success("✅ Stock OK")
 
 with head_col3:
-    if st.button("Logout"):
+    if st.button("🚪 Logout", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
 
 st.divider()
-st.caption("Built with Streamlit + Gemini + YOLO")
+
+# --- MAIN DASHBOARD TABS ---
 tab_dashboard, tab_stock, tab_photo, tab_pricing, tab_chat, tab_sales = st.tabs(
     ["📊 Dashboard", "📦 Stock", "📸 Photo Counter",
      "💰 Smart Pricing", "💬 AI Chat", "🧾 Sales"]
@@ -124,10 +131,11 @@ with tab_dashboard:
 
         with col_left:
             st.subheader("📂 Stock by Category")
-            cat_summary = df.groupby("category").agg(
+            df_cat = df.copy()
+            df_cat["row_total"] = df_cat["cost_price"] * df_cat["quantity"]
+            cat_summary = df_cat.groupby("category").agg(
                 items=("id", "count"),
-                total_value=("cost_price",
-                             lambda x: (x * df.loc[x.index, "quantity"]).sum()),
+                total_value=("row_total", "sum")
             ).reset_index()
             st.dataframe(cat_summary, use_container_width=True, hide_index=True)
 

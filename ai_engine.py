@@ -14,8 +14,8 @@ except ImportError:
 
 _client = None
 
-# Updated active models list to prevent 404/503 errors
-MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-1.5-flash"]
+# Official Valid Gemini Flash Models
+MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-2.0-flash"]
 
 
 def _init_gemini():
@@ -85,7 +85,6 @@ def _build_context() -> str:
 
 
 def _generate_content_safe(prompt: str) -> str:
-    """Auto-retry on 503 high-demand errors and fallback across active Gemini models."""
     client = get_client()
     if client is None:
         return (
@@ -95,17 +94,8 @@ def _generate_content_safe(prompt: str) -> str:
 
     last_error = None
 
-    # Try configured model first if specified, followed by fallback list
-    models_sequence = []
-    if hasattr(config, "GEMINI_MODEL") and config.GEMINI_MODEL:
-        models_sequence.append(config.GEMINI_MODEL)
-    
-    for m in MODELS_TO_TRY:
-        if m not in models_sequence:
-            models_sequence.append(m)
-
-    for model_name in models_sequence:
-        for attempt in range(2):  # Try 2 times per model
+    for model_name in MODELS_TO_TRY:
+        for attempt in range(2):
             try:
                 response = client.models.generate_content(
                     model=model_name,
@@ -116,17 +106,15 @@ def _generate_content_safe(prompt: str) -> str:
             except Exception as e:
                 err_msg = str(e)
                 last_error = e
-                # Check for 503 / high demand or temporarily unavailable errors
                 if "503" in err_msg or "UNAVAILABLE" in err_msg or "high demand" in err_msg.lower():
-                    time.sleep(1.5 * (attempt + 1))  # Brief pause before retrying
+                    time.sleep(1.5 * (attempt + 1))
                     continue
                 elif "404" in err_msg or "NOT_FOUND" in err_msg:
-                    # If model not found or deprecated, immediately switch to next active model
-                    break
+                    break  # Triable with next model
                 else:
-                    return f"⚠ AI Error: {e}\n\nPlease check your API key and internet connection."
+                    return f"⚠ AI Error: {e}"
 
-    return f"⚠ AI Error: Gemini servers are currently unavailable or under high demand. Details: {last_error}"
+    return f"⚠ AI Error: Unable to reach Gemini models. Details: {last_error}"
 
 
 def chat(user_message: str) -> str:

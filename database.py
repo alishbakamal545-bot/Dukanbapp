@@ -22,6 +22,12 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
@@ -35,51 +41,7 @@ def init_db():
                 yolo_label TEXT,
                 updated_at TEXT NOT NULL
             );
-def init_db():
-    with get_conn() as conn:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            name_urdu TEXT,
-            category TEXT,
-            cost_price REAL NOT NULL DEFAULT 0,
-            sell_price REAL NOT NULL DEFAULT 0,
-            quantity REAL NOT NULL DEFAULT 0,
-            unit TEXT NOT NULL DEFAULT 'pcs',
-            max_stock REAL NOT NULL DEFAULT 100,
-            yolo_label TEXT,
-            updated_at TEXT NOT NULL
-        );
 
-        CREATE TABLE IF NOT EXISTS sales (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER,
-            quantity REAL,
-            total REAL,
-            sold_at TEXT NOT NULL
-        );
-
-        -- YE NAYA TABLE ADD KARO
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL
-        );
-        """)
-        conn.commit()def add_user(email, password):
-    with get_conn() as conn:
-        try:
-            conn.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, password))
-            conn.commit()
-            return True
-        except:
-            return False # Email pehle se hai
-
-def check_user(email, password):
-    with get_conn() as conn:
-        user = conn.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password)).fetchone()
-        return user is not None
             CREATE TABLE IF NOT EXISTS sales (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id INTEGER NOT NULL,
@@ -111,6 +73,28 @@ def check_user(email, password):
 
     if get_product_count() == 0:
         _seed_sample_data()
+
+
+# --- Auth Functions ---
+def add_user(email: str, password: str) -> bool:
+    with get_conn() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO users (email, password) VALUES (?, ?)",
+                (email, password),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False  # Email already exists
+
+
+def check_user(email: str, password: str) -> bool:
+    with get_conn() as conn:
+        user = conn.execute(
+            "SELECT * FROM users WHERE email=? AND password=?",
+            (email, password),
+        ).fetchone()
+        return user is not None
 
 
 def _seed_sample_data():

@@ -15,7 +15,7 @@ except ImportError:
 _client = None
 
 # Official Valid Gemini Flash Models
-MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-3.6-flash"]
+MODELS_TO_TRY = ["gemini-3.6-flash"]
 
 
 def _init_gemini():

@@ -14,8 +14,8 @@ except ImportError:
 
 _client = None
 
-# Fallback Models list (agar high demand error 503 aaye to agle model par switch karega)
-MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+# Updated active models list to prevent 404/503 errors
+MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-1.5-flash"]
 
 
 def _init_gemini():
@@ -85,12 +85,12 @@ def _build_context() -> str:
 
 
 def _generate_content_safe(prompt: str) -> str:
-    """Auto-retry on 503 high-demand errors and fallback across Gemini models."""
+    """Auto-retry on 503 high-demand errors and fallback across active Gemini models."""
     client = get_client()
     if client is None:
         return (
             "⚠ Gemini API key is not configured. Add GEMINI_API_KEY to your "
-            ".env file or enter it in the sidebar."
+            ".env file or enter it in Streamlit secrets."
         )
 
     last_error = None
@@ -121,12 +121,12 @@ def _generate_content_safe(prompt: str) -> str:
                     time.sleep(1.5 * (attempt + 1))  # Brief pause before retrying
                     continue
                 elif "404" in err_msg or "NOT_FOUND" in err_msg:
-                    # If model not found or deprecated, immediately switch to next model
+                    # If model not found or deprecated, immediately switch to next active model
                     break
                 else:
                     return f"⚠ AI Error: {e}\n\nPlease check your API key and internet connection."
 
-    return f"⚠ AI Error: Gemini servers are currently under high demand. Details: {last_error}"
+    return f"⚠ AI Error: Gemini servers are currently unavailable or under high demand. Details: {last_error}"
 
 
 def chat(user_message: str) -> str:

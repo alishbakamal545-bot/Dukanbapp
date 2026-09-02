@@ -1,16 +1,21 @@
 """Dukan AI - AI Engine
-Gemini-powered chat, pricing advice, and stock analysis.
+Gemini-powered chat, pricing advice, and stock analysis with automatic retries and fallback models.
 """
 from typing import Optional
+import time
 import config
 import database
 
 try:
     from google import genai
+    from google.genai import types
 except ImportError:
     genai = None
 
 _client = None
+
+# Fallback Models list (agar high demand error 503 aaye to agle model par switch karega)
+MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
 
 def _init_gemini():
@@ -79,7 +84,8 @@ def _build_context() -> str:
     return "\n".join(lines)
 
 
-def chat(user_message: str) -> str:
+def _generate_content_safe(prompt: str) -> str:
+    """Auto-retry on 503 high-demand errors and fallback across Gemini models."""
     client = get_client()
     if client is None:
         return (
@@ -87,19 +93,49 @@ def chat(user_message: str) -> str:
             ".env file or enter it in the sidebar."
         )
 
+    last_error = None
+
+    # Try configured model first if specified, followed by fallback list
+    models_sequence = []
+    if hasattr(config, "GEMINI_MODEL") and config.GEMINI_MODEL:
+        models_sequence.append(config.GEMINI_MODEL)
+    
+    for m in MODELS_TO_TRY:
+        if m not in models_sequence:
+            models_sequence.append(m)
+
+    for model_name in models_sequence:
+        for attempt in range(2):  # Try 2 times per model
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if response and response.text:
+                    return response.text
+            except Exception as e:
+                err_msg = str(e)
+                last_error = e
+                # Check for 503 / high demand or temporarily unavailable errors
+                if "503" in err_msg or "UNAVAILABLE" in err_msg or "high demand" in err_msg.lower():
+                    time.sleep(1.5 * (attempt + 1))  # Brief pause before retrying
+                    continue
+                elif "404" in err_msg or "NOT_FOUND" in err_msg:
+                    # If model not found or deprecated, immediately switch to next model
+                    break
+                else:
+                    return f"⚠ AI Error: {e}\n\nPlease check your API key and internet connection."
+
+    return f"⚠ AI Error: Gemini servers are currently under high demand. Details: {last_error}"
+
+
+def chat(user_message: str) -> str:
     prompt = f"{_system_prompt()}\n\n{_build_context()}\n\nUser Question: {user_message}"
-    try:
-        response = client.models.generate_content(
-            model=config.GEMINI_MODEL,
-            contents=prompt,
-        )
-        return response.text or "I couldn't generate a response."
-    except Exception as e:
-        return f"⚠ AI Error: {e}\n\nPlease check your API key and internet connection."
+    return _generate_content_safe(prompt)
 
 
 def suggest_price(product_name: str, cost_price: float, margin_pct: float = None) -> str:
-    margin = margin_pct if margin_pct is not None else config.DEFAULT_PROFIT_MARGIN_PCT
+    margin = margin_pct if margin_pct is not None else getattr(config, "DEFAULT_PROFIT_MARGIN_PCT", 15)
     prompt = (
         f"I have a product '{product_name}' that costs me Rs.{cost_price}. "
         f"I want around {margin}% profit. Calculate a sensible selling price "

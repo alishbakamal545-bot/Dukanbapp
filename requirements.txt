@@ -6,3 +6,5 @@ ultralytics>=8.3
 Pillow>=10.0
 gTTS>=2.5
 SpeechRecognition>=3.10
+streamlit-mic-recorder
+google-generativeai

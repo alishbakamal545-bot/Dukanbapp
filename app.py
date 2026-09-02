@@ -9,68 +9,94 @@ import ai_engine
 import stock_counter
 import voice_assistant
 import utils
-# LOGIN SYSTEM
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
 
-def show_login():
-    col1, col2 = st.columns([2,1])
-    with col2:
-        st.title("Login")
-        with st.form("login_form"):
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            if st.form_submit_button("Login"):
-                if email == "admin@dokan.com" and password == "123456":
-                    st.session_state.logged_in = True
-                    st.rerun()
-                else:
-                    st.error("Ghalat Email ya Password")
-
-def show_logout_button():
-    with col2:  # col2 = right side header
-        if st.button("Logout"):
-            st.session_state.logged_in = False
-            st.rerun()
-
-# YE GATE HAI - LOGIN NAHI TO AAGE NAHI JANA
-if not st.session_state.logged_in:
-    show_login()
-    st.stop() 
-
-show_logout_button()
-
+# Page configuration must be at the top level
 st.set_page_config(
     page_title="Dukan AI - Digital Munshi",
     page_icon="🏪",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# Hide Sidebar Completely
 st.markdown("""
 <style>
     [data-testid="stSidebar"] {display: none;}
     [data-testid="stSidebarNav"] {display: none;}
 </style>
 """, unsafe_allow_html=True)
+
+# Initialize database
 database.init_db()
 
-# Top Header Bar with Login
-col1, col2 = st.columns([6, 4])
-with col1:
+# Initialize session state for auth
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def show_auth_page():
+    st.title("🏪 Dukan AI Login")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        tab_login, tab_signup = st.tabs(["Login", "Create Account"])
+        
+        with tab_login:
+            with st.form("login_form"):
+                email = st.text_input("Email", key="login_email")
+                password = st.text_input("Password", type="password", key="login_password")
+                submit_login = st.form_submit_button("Login")
+                
+                if submit_login:
+                    if database.check_user(email, password):
+                        st.session_state.logged_in = True
+                        st.success("Login Successful!")
+                        st.rerun()
+                    else:
+                        st.error("Ghalat Email ya Password")
+                        
+        with tab_signup:
+            with st.form("signup_form"):
+                new_email = st.text_input("Email", key="signup_email")
+                new_password = st.text_input("Password", type="password", key="signup_password")
+                submit_signup = st.form_submit_button("Sign Up")
+                
+                if submit_signup:
+                    if new_email and new_password:
+                        if database.add_user(new_email, new_password):
+                            st.success("Account created successfully! Please log in.")
+                        else:
+                            st.error("Account already exists with this email.")
+                    else:
+                        st.warning("Please fill in all fields.")
+
+# GATE - If not logged in, show Auth Page and stop execution
+if not st.session_state.logged_in:
+    show_auth_page()
+    st.stop()
+
+# DASHBOARD HEADER WITH LOGOUT
+head_col1, head_col2, head_col3 = st.columns([6, 2, 2])
+
+with head_col1:
     st.title("🏪 Dukan AI")
     st.caption("Digital Munshi - اب کا ڈیجٹل منشی")
-with col3:
-  # API Key ab secrets.toml se aayegi
-    api_key = st.secrets["GEMINI_API_KEY"]
-    config.GEMINI_API_KEY = api_key
-    ai_engine._client = None
 
-with col4:
+# API Key config
+api_key = st.secrets["GEMINI_API_KEY"]
+config.GEMINI_API_KEY = api_key
+ai_engine._client = None
+
+with head_col2:
     alerts = database.get_low_stock_alerts()
     if alerts:
         st.warning(f"⚠️ {len(alerts)} Low Stock")
     else:
         st.success("✅ Stock OK")
+
+with head_col3:
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 
 st.divider()
 st.caption("Built with Streamlit + Gemini + YOLO")

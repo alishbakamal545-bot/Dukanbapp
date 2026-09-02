@@ -2,7 +2,8 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
-from streamlit_mic_recorder import mic_recorder
+from audio_recorder_streamlit import audio_recorder
+from google.genai import types
 
 import config
 import database
@@ -470,32 +471,25 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 1. Text Input
-    user_input = st.chat_input(
-        "Ask Dukan AI anything... e.g. 'chawal ka kya rate hai?'"
-    )
-
-    # 2. Browser Voice Input Section
-    st.write("---")
-    c1, c2 = st.columns([1, 4])
-    with c1:
-        audio = mic_recorder(
-            start_prompt="🎤 Record Voice",
-            stop_prompt="🛑 Stop & Process",
-            key="browser_voice_recorder"
+    # Voice Input Recorder
+    c_rec, c_cap = st.columns([1, 4])
+    with c_rec:
+        audio_bytes = audio_recorder(
+            text="",
+            recording_color="#e84c3d",
+            neutral_color="#6aa84f",
+            icon_name="microphone",
+            icon_size="2x"
         )
-    with c2:
-        st.caption("Click to record audio directly from your browser mic.")
 
-    voice_text = None
-    if audio and "bytes" in audio:
-        with st.spinner("Transcribing voice input..."):
+    voice_prompt = None
+    if audio_bytes:
+        with st.spinner("Transcribing audio..."):
             try:
-                # Transcribe speech bytes using Gemini multimodal audio capabilities
-                audio_part = {
-                    "mime_type": "audio/wav",
-                    "data": audio["bytes"]
-                }
+                audio_part = types.Part.from_bytes(
+                    data=audio_bytes,
+                    mime_type="audio/wav"
+                )
                 response = ai_engine.get_client().models.generate_content(
                     model="gemini-2.5-flash",
                     contents=[
@@ -503,21 +497,21 @@ with tab_chat:
                         audio_part
                     ]
                 )
-                voice_text = response.text.strip()
+                voice_prompt = response.text.strip()
             except Exception as e:
                 st.error(f"Voice Transcription Failed: {e}")
 
-    # Process either text input or voice input
-    active_prompt = user_input or voice_text
+    text_prompt = st.chat_input("Ask Dukan AI anything... e.g. 'chawal ka kya rate hai?'")
+    user_input = voice_prompt or text_prompt
 
-    if active_prompt:
+    if user_input:
         st.session_state.chat_history.append(
-            {"role": "user", "content": active_prompt}
+            {"role": "user", "content": user_input}
         )
         with st.chat_message("user"):
-            st.markdown(active_prompt)
+            st.markdown(user_input)
 
-        cmd = utils.parse_voice_command(active_prompt)
+        cmd = utils.parse_voice_command(user_input)
 
         with st.chat_message("assistant"):
             with st.spinner("Soch raha hoon..."):
@@ -609,13 +603,12 @@ with tab_chat:
                             f"'{cmd['product']}'."
                         )
                 else:
-                    reply = ai_engine.chat(active_prompt)
+                    reply = ai_engine.chat(user_input)
 
             st.markdown(reply)
             st.session_state.chat_history.append(
                 {"role": "assistant", "content": reply}
             )
-            st.rerun()
 
     st.divider()
     if st.button("🗑 Clear Chat"):
@@ -651,5 +644,3 @@ with tab_sales:
         if st.button("🤖 Generate AI Daily Summary"):
             with st.spinner("Generating summary..."):
                 st.markdown(ai_engine.daily_summary())
-
-      

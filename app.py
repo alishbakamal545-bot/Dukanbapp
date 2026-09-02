@@ -9,7 +9,6 @@ import config
 import database
 import ai_engine
 import stock_counter
-import voice_assistant
 import utils
 
 # Page configuration
@@ -490,13 +489,20 @@ with tab_chat:
                     data=audio_bytes,
                     mime_type="audio/wav"
                 )
-                response = ai_engine.get_client().models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[
-                        "Accurately transcribe this audio. It may contain Urdu, Roman Urdu, or English speech. Return ONLY the transcribed text.",
-                        audio_part
-                    ]
-                )
+                
+                # Fallback implementation to handle 503 unavailable errors gracefully
+                transcribe_prompt = "Accurately transcribe this audio. It may contain Urdu, Roman Urdu, or English speech. Return ONLY the transcribed text."
+                try:
+                    response = ai_engine.get_client().models.generate_content(
+                        model="gemini-1.5-flash",
+                        contents=[transcribe_prompt, audio_part]
+                    )
+                except Exception:
+                    response = ai_engine.get_client().models.generate_content(
+                        model="gemini-2.0-flash",
+                        contents=[transcribe_prompt, audio_part]
+                    )
+                    
                 voice_prompt = response.text.strip()
             except Exception as e:
                 st.error(f"Voice Transcription Failed: {e}")

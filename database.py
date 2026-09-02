@@ -75,13 +75,16 @@ def init_db():
         _seed_sample_data()
 
 
-# --- Auth Functions ---
+# --- Auth Functions (Fixed for Case-Insensitive Login) ---
 def add_user(email: str, password: str) -> bool:
+    clean_email = email.strip().lower()
+    clean_password = password.strip()
+    
     with get_conn() as conn:
         try:
             conn.execute(
                 "INSERT INTO users (email, password) VALUES (?, ?)",
-                (email, password),
+                (clean_email, clean_password),
             )
             return True
         except sqlite3.IntegrityError:
@@ -89,10 +92,13 @@ def add_user(email: str, password: str) -> bool:
 
 
 def check_user(email: str, password: str) -> bool:
+    clean_email = email.strip().lower()
+    clean_password = password.strip()
+    
     with get_conn() as conn:
         user = conn.execute(
-            "SELECT * FROM users WHERE email=? AND password=?",
-            (email, password),
+            "SELECT * FROM users WHERE LOWER(email)=? AND password=?",
+            (clean_email, clean_password),
         ).fetchone()
         return user is not None
 

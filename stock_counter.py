@@ -52,18 +52,26 @@ def get_annotated_image(image: Image.Image) -> Image.Image:
 
 def match_detections_to_products(counts: list[dict], products_df) -> list[dict]:
     matches = []
+    if products_df.empty or "yolo_label" not in products_df.columns:
+        return matches
+
     yolo_products = products_df[products_df["yolo_label"].notna()].copy()
 
     for item in counts:
-        label = item["label"].lower()
+        detected_label = item["label"].lower().strip()
+        
+        # Enhanced matching: check for exact match or partial/substring match
         matching = yolo_products[
-            yolo_products["yolo_label"].str.lower() == label
+            yolo_products["yolo_label"].str.lower().str.strip().apply(
+                lambda db_lbl: db_lbl in detected_label or detected_label in db_lbl
+            )
         ]
+        
         for _, product in matching.iterrows():
             matches.append({
                 "product_id": int(product["id"]),
                 "product_name": product["name"],
-                "yolo_label": label,
+                "yolo_label": detected_label,
                 "detected_count": item["count"],
                 "current_stock": product["quantity"],
                 "unit": product["unit"],
@@ -84,14 +92,14 @@ def full_analysis(image: Image.Image) -> dict:
     try:
         df = database.get_all_products()
         known_labels = set(
-            df["yolo_label"].dropna().str.lower().unique()
+            df["yolo_label"].dropna().str.lower().str.strip().unique()
         )
     except Exception:
         known_labels = set()
 
     unmatched = [
         c["label"] for c in counts
-        if c["label"].lower() not in known_labels
+        if c["label"].lower().strip() not in known_labels
     ]
 
     return {

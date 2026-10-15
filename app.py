@@ -492,15 +492,15 @@ with tab_chat:
                 
                 transcribe_prompt = "Accurately transcribe this audio. It may contain Urdu, Roman Urdu, or English speech. Return ONLY the transcribed text."
                 
-                # Official active models fallback
+                # Official active models fallback (updated to gemini-3.8-flash)
                 try:
                     response = ai_engine.get_client().models.generate_content(
-                        model="gemini-1.5-flash",
+                        model="gemini-3.8-flash",
                         contents=[transcribe_prompt, audio_part]
                     )
                 except Exception:
                     response = ai_engine.get_client().models.generate_content(
-                        model="gemini-2.0-flash",
+                        model="gemini-3.8-flash",
                         contents=[transcribe_prompt, audio_part]
                     )
                     

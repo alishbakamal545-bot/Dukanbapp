@@ -15,10 +15,10 @@ except ImportError:
 _client = None
 
 # Single official standard model for AI engine
-PRIMARY_MODEL = "gemini-3.6-flash"
+PRIMARY_MODEL = "gemini-3.8-flash"
 
 # Backup models, used automatically only if PRIMARY_MODEL fails (busy / internal error)
-FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"]
+FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash"]
 
 
 def _init_gemini():
